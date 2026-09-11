@@ -50,7 +50,7 @@ export type HeirResult = {
   count: number;
   basis: "fard" | "asaba" | "fard+asaba" | "radd" | "blocked";
   share: Fraction; // total share of the estate for this group
-  perHead?: Fraction;
+  perHead?: Fraction | undefined;
   reason: string;
 };
 

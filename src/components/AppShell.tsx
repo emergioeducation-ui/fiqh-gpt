@@ -47,8 +47,8 @@ function ConversationList({
   activeId,
   onNavigate,
 }: {
-  activeId?: string;
-  onNavigate?: () => void;
+  activeId?: string | undefined;
+  onNavigate?: (() => void) | undefined;
 }) {
   const fetchConversations = useServerFn(listConversations);
   const removeConversation = useServerFn(deleteConversation);
@@ -118,8 +118,8 @@ function SidebarBody({
   activeId,
   onNavigate,
 }: {
-  activeId?: string;
-  onNavigate?: () => void;
+  activeId?: string | undefined;
+  onNavigate?: (() => void) | undefined;
 }) {
   const { user } = useAuth();
   const isAdmin = useIsAdmin(user?.id);
@@ -227,7 +227,7 @@ export function AppShell({
   activeConversationId,
 }: {
   children: ReactNode;
-  activeConversationId?: string;
+  activeConversationId?: string | undefined;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

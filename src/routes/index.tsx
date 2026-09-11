@@ -4,9 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { ChatView } from "@/components/ChatView";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    temporary: search["temporary"] === true || search["temporary"] === "true" ? true : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { temporary?: boolean } =>
+    search["temporary"] === true || search["temporary"] === "true" ? { temporary: true } : {},
   head: () => ({
     meta: [
       { title: "FiqhGPT — Fatwa, Faraid and Zakat answered from the kithabs" },

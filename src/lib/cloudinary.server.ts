@@ -71,7 +71,7 @@ export async function uploadToCloudinary(
     secureUrl: json.secure_url,
     publicId: json.public_id,
     bytes: json.bytes ?? 0,
-    format: json.format,
+    format: json.format ?? "raw",
   };
 }
 
