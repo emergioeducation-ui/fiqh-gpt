@@ -1,2 +1,0 @@
-ALTER FUNCTION public.match_book_passages(extensions.vector, text, text[], text[], int) SET search_path = public, extensions;
-ALTER FUNCTION public.normalize_arabic(text) SET search_path = public, extensions;
