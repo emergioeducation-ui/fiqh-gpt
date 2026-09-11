@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
+import { useRealtime } from "@/hooks/useRealtime";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
 import { getConversation } from "@/lib/chat.functions";
 import type { Mode, School } from "@/lib/fiqh-options";
@@ -41,6 +42,16 @@ export const Route = createFileRoute("/_authenticated/c/$conversationId")({
 function SavedChat() {
   const { conversationId } = Route.useParams();
   const { conversation, messages } = Route.useLoaderData();
+  const router = useRouter();
+
+  useRealtime(
+    `chat-${conversationId}`,
+    ["messages"],
+    () => {
+      void router.invalidate();
+    },
+    { filter: `conversation_id=eq.${conversationId}`, table: "messages" },
+  );
 
   return (
     <AppShell activeConversationId={conversationId}>
