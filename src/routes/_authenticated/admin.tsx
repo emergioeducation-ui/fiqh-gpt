@@ -193,6 +193,11 @@ function BooksPanel() {
     queryFn: () => fetchBooks(),
   });
 
+  useRealtime("admin-books", ["books"], () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+  });
+
   const runIndexing = async (bookId: string, total: number) => {
     setIndexing(bookId);
     setProgress({ done: 0, total });
