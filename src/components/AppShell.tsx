@@ -21,6 +21,7 @@ import { BrandLockup } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
+import { useRealtime } from "@/hooks/useRealtime";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteConversation, listConversations } from "@/lib/chat.functions";
 import { modeLabel } from "@/lib/fiqh-options";
@@ -59,6 +60,10 @@ function ConversationList({
   const { data, isLoading } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => fetchConversations(),
+  });
+
+  useRealtime("conversations", ["conversations"], () => {
+    void queryClient.invalidateQueries({ queryKey: ["conversations"] });
   });
 
   if (isLoading) {
