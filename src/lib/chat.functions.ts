@@ -91,7 +91,9 @@ export const saveMessages = createServerFn({ method: "POST" })
       );
       if (error) throw new Error(error.message);
     }
-    const patch: Record<string, string> = { updated_at: new Date().toISOString() };
+    const patch: { updated_at: string; title?: string } = {
+      updated_at: new Date().toISOString(),
+    };
     if (data.title) patch["title"] = data.title.slice(0, 120);
     await context.supabase.from("conversations").update(patch).eq("id", data.conversationId);
     return { ok: true };
