@@ -19,7 +19,7 @@ export const ensureProfile = createServerFn({ method: "POST" })
       {
         id: context.userId,
         email: email || null,
-        display_name: email ? email.split("@")[0] : null,
+        display_name: email ? (email.split("@")[0] ?? email) : null,
       },
       { onConflict: "id" },
     );
