@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { useRealtime } from "@/hooks/useRealtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -193,6 +194,11 @@ function BooksPanel() {
     queryFn: () => fetchBooks(),
   });
 
+  useRealtime("admin-books", ["books"], () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+  });
+
   const runIndexing = async (bookId: string, total: number) => {
     setIndexing(bookId);
     setProgress({ done: 0, total });
@@ -318,6 +324,10 @@ function SettingsPanel() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: () => fetchStats(),
+  });
+
+  useRealtime("admin-stats", ["zakat_settings", "usage_events", "books"], () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
   });
 
   const save = useMutation({

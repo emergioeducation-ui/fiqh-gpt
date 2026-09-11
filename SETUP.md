@@ -46,7 +46,72 @@ Email sign-up is enabled with verification on. A new user receives a
 confirmation link and cannot sign in until they click it. Google sign-in is also
 enabled and needs no confirmation step.
 
+### 2a. Database migrations (how the tables were created and how to change them)
+
+Every table, rule, index and function above was created by a **migration** — a
+numbered SQL file kept in `supabase/migrations/`. Nothing in the database is
+made by clicking around; the files are the single source of truth, they run in
+filename order, and each one runs only once. That is why a fresh copy of this
+project rebuilds the exact same backend.
+
+What the migrations set up, in order:
+
+1. **Extensions** — `vector` (for meaning-based search over Arabic passages) and
+   `pg_trgm` (for word search).
+2. **Tables** — the eight tables listed above, each with `created_at`, and an
+   `updated_at` kept fresh by the `touch_updated_at()` trigger.
+3. **Permissions** — a `GRANT` for every table in the same migration that creates
+   it. Without the grant the app cannot reach the table even when the rules
+   allow it.
+4. **Access rules (RLS)** — turned on for every table: a person sees only their
+   own chats; the kithab list and zakat rates are readable by everyone; only an
+   admin can add, index or remove a kithab or change a rate; the questions log is
+   admin-only.
+5. **Roles** — the `app_role` list (`admin`, `user`), the `user_roles` table and
+   the `has_role()` check used by every rule. Roles are never stored on the
+   profile, so they cannot be faked from the browser.
+6. **Arabic search** — `normalize_arabic()` (strips harakat, tatweel and unifies
+   alif/ya/hamza forms) plus `match_book_passages()`, which blends meaning-based
+   and word-based search and filters by school and topic.
+7. **Zakat values** — the starting nisab and price rows.
+8. **Admin + live updates** — your email in `admin_emails`, the admin role on
+   your account, and the tables added to the live-update feed (see section 2b).
+
+To change anything about the database, ask for the change in chat — a new
+migration file is written, shown to you for approval, and applied to both the
+preview and the published app (one backend serves both). Never edit an old
+migration: it has already run, so a correction is always a new file. The
+TypeScript types in `src/integrations/supabase/types.ts` are regenerated
+automatically after each migration; do not edit them by hand.
+
+Useful to know:
+
+- Deleting data or dropping a column asks for an explicit yes before it runs.
+- Seed/demo rows belong inside a migration, not in application code.
+- If a query ever fails with a permission error, the fix is a missing `GRANT`
+  in the migration that created that table.
+
+### 2b. Live updates (no refresh needed)
+
+The backend streams changes to the open page, so screens update by themselves:
+
+- the chat list in the sidebar, when a chat is created, renamed or deleted
+- an open saved chat, when a new message is stored (also from another device)
+- the admin library, while a kithab is being indexed — status and progress move
+  on their own
+- the library figures, zakat rates and recent questions on the admin screen
+
+This works because those tables are part of the live-update feed (added by a
+migration with `ALTER PUBLICATION supabase_realtime ADD TABLE …` and
+`REPLICA IDENTITY FULL`) and each screen subscribes through the small
+`useRealtime` helper in `src/hooks/useRealtime.ts`. The subscription is created
+when a screen opens and closed when it leaves, so nothing piles up. Access rules
+still apply to the stream: you only ever receive rows you are allowed to read.
+If you add a new table later and want it live, it must be added to the feed in
+its migration.
+
 ---
+
 
 ## 3. Keys — what to add and where
 
