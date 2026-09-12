@@ -35,6 +35,10 @@ export async function extractText(
     return { text, pages: 0, ocrNeeded: false };
   }
 
+  if (lower.endsWith(".epub") || mimeType === "application/epub+zip") {
+    return extractEpub(bytes);
+  }
+
   if (lower.endsWith(".doc")) {
     throw new Error("Old .doc files are not supported. Please save the file as .docx or plain text (.txt).");
   }
