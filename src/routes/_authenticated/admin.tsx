@@ -114,14 +114,20 @@ function UploadPanel() {
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Upload a PDF, Word or plain-text file. Arabic text is kept as it is; the passages become
-        the references the answers quote from.
+        Upload a PDF, EPUB, Word or plain-text file. Arabic text is kept as it is; the passages
+        become the references the answers quote from.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="book-file">File (PDF, DOCX or TXT, up to 25 MB)</Label>
-          <Input id="book-file" name="file" type="file" accept=".pdf,.txt,.md,.docx" required />
+          <Label htmlFor="book-file">File (PDF, EPUB, DOCX or TXT, up to 25 MB)</Label>
+          <Input
+            id="book-file"
+            name="file"
+            type="file"
+            accept=".pdf,.epub,.txt,.md,.docx"
+            required
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="book-title">Title</Label>
