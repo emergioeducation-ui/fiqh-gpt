@@ -70,6 +70,63 @@ function friendlyStatus(status: number, body: string): AiError {
   return new AiError(`The AI service returned an error (${status}). ${body.slice(0, 300)}`, status);
 }
 
+/** Models tried in order when the primary one is busy or unavailable. */
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_CHAT_MODEL,
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-2.0-flash",
+].filter((m, i, all) => all.indexOf(m) === i);
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Calls Gemini's OpenAI-compatible chat endpoint, retrying transient
+ * failures (429/5xx) with backoff and falling back to other models.
+ */
+async function geminiChat(
+  messages: ChatMessage[],
+  stream: boolean,
+): Promise<Response> {
+  let last: { status: number; body: string } | null = null;
+
+  for (const model of GEMINI_FALLBACK_MODELS) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await fetch(`${GEMINI_BASE}/openai/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env["GEMINI_API_KEY"]}`,
+        },
+        body: JSON.stringify({ model, messages, ...(stream ? { stream: true } : {}) }),
+      });
+      if (res.ok) return res;
+
+      const body = await res.text();
+      last = { status: res.status, body };
+      // Key/permission and request problems will not improve by retrying.
+      if (res.status === 401 || res.status === 403 || res.status === 400) {
+        throw friendlyStatus(res.status, body);
+      }
+      // Model missing/retired: move straight to the next model.
+      if (res.status === 404) break;
+      if (res.status === 429 || res.status >= 500) {
+        await sleep(600 * 2 ** attempt);
+        continue;
+      }
+      throw friendlyStatus(res.status, body);
+    }
+  }
+
+  if (last && (last.status === 429 || last.status >= 500)) {
+    throw new AiError(
+      "The AI service is busy at the moment. Please send your question again in a few seconds.",
+      503,
+    );
+  }
+  throw friendlyStatus(last?.status ?? 503, last?.body ?? "");
+}
+
 /** Streams an answer as plain text chunks. */
 export async function streamAnswer(messages: ChatMessage[]): Promise<ReadableStream<Uint8Array>> {
   const provider = aiProvider();
