@@ -98,7 +98,12 @@ async function geminiChat(
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env["GEMINI_API_KEY"]}`,
         },
-        body: JSON.stringify({ model, messages, ...(stream ? { stream: true } : {}) }),
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 8192,
+          ...(stream ? { stream: true } : {}),
+        }),
       });
       if (res.ok) return res;
 
