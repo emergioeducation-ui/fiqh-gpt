@@ -173,10 +173,18 @@ export const indexNextBatch = createServerFn({ method: "POST" })
         if (updateError) throw new Error(updateError.message);
         embedded += 1;
       } catch (error) {
+        const message = (error as Error).message;
+        const busy = /rate limit|busy|quota|429|503/i.test(message);
         await context.supabase
           .from("books")
-          .update({ status: "error", status_message: (error as Error).message.slice(0, 400) })
+          .update({
+            status: busy ? "indexing" : "error",
+            status_message: message.slice(0, 400),
+          })
           .eq("id", data.bookId);
+        // A busy AI service is temporary: keep what we indexed and let the
+        // caller resume the remaining passages instead of failing the book.
+        if (busy) break;
         throw error;
       }
     }
