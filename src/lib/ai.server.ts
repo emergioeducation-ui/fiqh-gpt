@@ -219,3 +219,62 @@ export async function embedText(
 
   return null;
 }
+
+function toBase64(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  let binary = "";
+  const step = 0x8000;
+  for (let i = 0; i < view.length; i += step) {
+    binary += String.fromCharCode(...view.subarray(i, i + step));
+  }
+  return btoa(binary);
+}
+
+/**
+ * Reads a scanned document with the model's vision ability (OCR fallback).
+ * Returns plain text with `[ص N]` page markers, or "" when unavailable.
+ */
+export async function transcribeDocument(
+  bytes: ArrayBuffer,
+  mimeType: string,
+): Promise<string> {
+  const key = process.env["GEMINI_API_KEY"];
+  if (!key) return "";
+  if (bytes.byteLength > 18 * 1024 * 1024) return "";
+
+  const prompt =
+    "Transcribe every word of this book scan exactly as printed, preserving the original Arabic script and line order. " +
+    "Start each page with a marker line of the form [ص N] where N is the printed page number if visible, otherwise the sequential page number. " +
+    "Put chapter headings (باب / فصل / كتاب) on their own line. Output only the transcription, no commentary.";
+
+  const res = await fetch(
+    `${GEMINI_BASE}/models/${GEMINI_CHAT_MODEL}:generateContent?key=${key}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inline_data: { mime_type: mimeType || "application/pdf", data: toBase64(bytes) } },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0, maxOutputTokens: 32768 },
+      }),
+    },
+  );
+  if (!res.ok) {
+    console.error("OCR transcription failed", res.status, (await res.text()).slice(0, 300));
+    return "";
+  }
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  return (json.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+}
