@@ -9,7 +9,7 @@
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const GATEWAY_BASE = "https://ai.gateway.lovable.dev/v1";
 
-export const GEMINI_CHAT_MODEL = process.env["GEMINI_CHAT_MODEL"] ?? "gemini-2.5-flash";
+export const GEMINI_CHAT_MODEL = process.env["GEMINI_CHAT_MODEL"] ?? "gemini-3.8-flash";
 export const GEMINI_EMBED_MODEL = "gemini-embedding-001";
 export const EMBED_DIMENSIONS = 3072;
 
