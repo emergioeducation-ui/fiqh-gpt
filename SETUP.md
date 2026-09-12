@@ -14,7 +14,7 @@ key goes, how the answers are produced, and how to "train" it by adding kithabs.
 | Library (`/library`) | Public list of the reference books currently indexed |
 | Admin (`/admin`) | Upload kithabs, index them, edit zakat rates, add administrators |
 | Backend (Lovable Cloud) | Postgres + auth + row-level security + `pgvector` search |
-| File storage (Cloudinary) | Keeps the original uploaded PDF/DOCX/TXT of every kithab |
+| File storage (Cloudinary) | Keeps the original uploaded PDF/EPUB/DOCX/TXT of every kithab |
 | AI | Google Gemini (your key) for answers and for embeddings |
 
 Nothing about the answers is hardcoded: every reply is generated from the
@@ -150,7 +150,7 @@ Notes:
 
 ## 4. Which file format to use for the kithabs
 
-Accepted: **PDF**, **DOCX**, **TXT** / **MD**, up to 25 MB per file.
+Accepted: **PDF**, **EPUB**, **DOCX**, **TXT** / **MD**, up to 25 MB per file.
 
 Ranked by quality of the result:
 
