@@ -41,11 +41,32 @@ export async function extractText(
 
   if (lower.endsWith(".pdf") || mimeType === "application/pdf") {
     const { extractText: extractPdfText, getDocumentProxy } = await import("unpdf");
-    const pdf = await getDocumentProxy(new Uint8Array(bytes));
-    const { text, totalPages } = await extractPdfText(pdf, { mergePages: false });
-    const pageTexts = Array.isArray(text) ? text : [String(text)];
-    const joined = pageTexts.map((page, index) => `[ص ${index + 1}]\n${page}`).join("\n\n");
-    const density = joined.replace(/\s|\[ص \d+\]/g, "").length / Math.max(1, totalPages);
+    let joined = "";
+    let totalPages = 0;
+    try {
+      const pdf = await getDocumentProxy(new Uint8Array(bytes));
+      const extracted = await extractPdfText(pdf, { mergePages: false });
+      totalPages = extracted.totalPages;
+      const pageTexts = Array.isArray(extracted.text) ? extracted.text : [String(extracted.text)];
+      joined = pageTexts.map((page, index) => `[ص ${index + 1}]\n${page}`).join("\n\n");
+    } catch (error) {
+      console.error("PDF text layer could not be read", error);
+    }
+    const bare = joined.replace(/\s|\[ص \d+\]/g, "").length;
+    const density = bare / Math.max(1, totalPages);
+
+    // Scanned PDF: fall back to reading the pages with the model (OCR).
+    if (density < 80) {
+      const { transcribeDocument } = await import("./ai.server");
+      const ocr = await transcribeDocument(bytes, "application/pdf");
+      if (ocr.replace(/\s/g, "").length > Math.max(bare, 200)) {
+        return { text: ocr, pages: totalPages, ocrNeeded: true };
+      }
+    }
+    if (bare < 40)
+      throw new Error(
+        "This looks like a scanned book and the pages could not be read automatically. Please upload a clearer scan, a smaller file (fewer pages at a time), or a plain-text version.",
+      );
     return { text: joined, pages: totalPages, ocrNeeded: density < 80 };
   }
 
