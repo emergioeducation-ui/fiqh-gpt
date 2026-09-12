@@ -144,16 +144,45 @@ export async function streamAnswer(messages: ChatMessage[]): Promise<ReadableStr
   const encoder = new TextEncoder();
 
   if (provider === "gemini") {
-    const res = await geminiChat(messages, true);
-
-
     return new ReadableStream({
       async start(controller) {
         try {
-          for await (const event of sseEvents(res)) {
-            const delta = (event as { choices?: { delta?: { content?: string } }[] }).choices?.[0]
-              ?.delta?.content;
-            if (delta) controller.enqueue(encoder.encode(delta));
+          let turn: ChatMessage[] = messages;
+          let answer = "";
+
+          // Gemini can stop early when it hits the output limit; continue up to
+          // 3 extra turns so long answers finish instead of cutting off.
+          for (let round = 0; round < 4; round++) {
+            const res = await geminiChat(turn, true);
+            let finish: string | null = null;
+            let produced = "";
+
+            for await (const event of sseEvents(res)) {
+              const choice = (
+                event as {
+                  choices?: { delta?: { content?: string }; finish_reason?: string | null }[];
+                }
+              ).choices?.[0];
+              const delta = choice?.delta?.content;
+              if (delta) {
+                produced += delta;
+                controller.enqueue(encoder.encode(delta));
+              }
+              if (choice?.finish_reason) finish = choice.finish_reason;
+            }
+
+            answer += produced;
+            if (finish !== "length" || !produced.trim()) break;
+
+            turn = [
+              ...messages,
+              { role: "assistant", content: answer },
+              {
+                role: "user",
+                content:
+                  "Your previous message was cut off by the length limit. Continue the answer from exactly where it stopped. Do not repeat anything already written, do not restate the question, and do not add a new introduction.",
+              },
+            ];
           }
         } catch (error) {
           console.error("Gemini stream failed", error);
