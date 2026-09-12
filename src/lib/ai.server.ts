@@ -228,22 +228,34 @@ export async function embedText(
   const provider = aiProvider();
 
   if (provider === "gemini") {
-    const res = await fetch(
-      `${GEMINI_BASE}/models/${GEMINI_EMBED_MODEL}:embedContent?key=${process.env["GEMINI_API_KEY"]}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: `models/${GEMINI_EMBED_MODEL}`,
-          content: { parts: [{ text: clean }] },
-          taskType: kind === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
-          outputDimensionality: EMBED_DIMENSIONS,
-        }),
-      },
-    );
-    if (!res.ok) throw friendlyStatus(res.status, await res.text());
-    const json = (await res.json()) as { embedding?: { values?: number[] } };
-    return json.embedding?.values ?? null;
+    let last: { status: number; body: string } | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await fetch(
+        `${GEMINI_BASE}/models/${GEMINI_EMBED_MODEL}:embedContent?key=${process.env["GEMINI_API_KEY"]}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: `models/${GEMINI_EMBED_MODEL}`,
+            content: { parts: [{ text: clean }] },
+            taskType: kind === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+            outputDimensionality: EMBED_DIMENSIONS,
+          }),
+        },
+      );
+      if (res.ok) {
+        const json = (await res.json()) as { embedding?: { values?: number[] } };
+        return json.embedding?.values ?? null;
+      }
+      const body = await res.text();
+      last = { status: res.status, body };
+      if (res.status === 429 || res.status >= 500) {
+        await sleep(1500 * 2 ** attempt);
+        continue;
+      }
+      throw friendlyStatus(res.status, body);
+    }
+    throw friendlyStatus(last?.status ?? 429, last?.body ?? "");
   }
 
   if (provider === "gateway") {
