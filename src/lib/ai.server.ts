@@ -208,15 +208,8 @@ export async function completeText(messages: ChatMessage[]): Promise<string> {
   const provider = aiProvider();
   if (provider === "none") return "";
   if (provider === "gemini") {
-    const res = await fetch(`${GEMINI_BASE}/openai/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env["GEMINI_API_KEY"]}`,
-      },
-      body: JSON.stringify({ model: GEMINI_CHAT_MODEL, messages }),
-    });
-    if (!res.ok) throw friendlyStatus(res.status, await res.text());
+    const res = await geminiChat(messages, false);
+
     const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     return json.choices?.[0]?.message?.content?.trim() ?? "";
   }
