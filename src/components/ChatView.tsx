@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Ghost, Loader2, Square } from "lucide-react";
+import { ArrowUp, Ghost, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -303,5 +303,19 @@ export function ChatView({
         </form>
       </div>
     </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 align-middle" aria-label="Generating answer">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 animate-bounce rounded-full bg-primary/70"
+          style={{ animationDelay: `${i * 160}ms`, animationDuration: "1s" }}
+        />
+      ))}
+    </span>
   );
 }
