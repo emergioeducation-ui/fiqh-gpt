@@ -74,7 +74,91 @@ export async function extractText(
     return { text: joined, pages: totalPages, ocrNeeded: density < 80 };
   }
 
-  throw new Error("Unsupported file type. Upload a PDF, a .docx file, or plain text (.txt / .md).");
+  throw new Error(
+    "Unsupported file type. Upload a PDF, an EPUB, a .docx file, or plain text (.txt / .md).",
+  );
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<\?xml[\s\S]*?\?>/g, "")
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<h([1-4])[^>]*>/gi, (_m, level) => `\n\n${"#".repeat(Number(level))} `)
+    .replace(/<\/h[1-4]>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|section|blockquote)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_m, code) => String.fromCodePoint(Number(code)))
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+/** Reads an EPUB (a zip of XHTML chapters) in reading order via its OPF spine. */
+function extractEpub(bytes: ArrayBuffer): ExtractResult {
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(new Uint8Array(bytes));
+  } catch {
+    throw new Error("This EPUB file could not be opened. It may be corrupted or password protected.");
+  }
+
+  const names = Object.keys(files);
+  const decode = (name: string) => strFromU8(files[name]!);
+
+  // Find the package document (.opf) to read the spine order.
+  let opfPath: string | null = null;
+  const container = names.find((n) => n.toLowerCase() === "meta-inf/container.xml");
+  if (container) {
+    const match = decode(container).match(/full-path="([^"]+)"/i);
+    if (match) opfPath = match[1]!;
+  }
+  if (!opfPath) opfPath = names.find((n) => n.toLowerCase().endsWith(".opf")) ?? null;
+
+  const docNames: string[] = [];
+  if (opfPath && files[opfPath]) {
+    const opf = decode(opfPath);
+    const base = opfPath.includes("/") ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1) : "";
+    const manifest = new Map<string, string>();
+    for (const item of opf.match(/<item\b[^>]*\/?>/gi) ?? []) {
+      const id = item.match(/\bid="([^"]+)"/i)?.[1];
+      const href = item.match(/\bhref="([^"]+)"/i)?.[1];
+      if (id && href) manifest.set(id, decodeURIComponent(href));
+    }
+    for (const ref of opf.match(/<itemref\b[^>]*\/?>/gi) ?? []) {
+      const idref = ref.match(/\bidref="([^"]+)"/i)?.[1];
+      const href = idref ? manifest.get(idref) : undefined;
+      if (!href) continue;
+      const full = `${base}${href}`.replace(/[^/]+\/\.\.\//g, "").split("#")[0]!;
+      if (files[full]) docNames.push(full);
+    }
+  }
+
+  if (docNames.length === 0) {
+    docNames.push(
+      ...names
+        .filter((n) => /\.(xhtml|html|htm)$/i.test(n) && !n.startsWith("__MACOSX"))
+        .sort((a, b) => a.localeCompare(b, "en", { numeric: true })),
+    );
+  }
+
+  const parts: string[] = [];
+  for (const name of docNames) {
+    const text = htmlToText(decode(name)).trim();
+    if (text.length >= 20) parts.push(text);
+  }
+
+  const text = parts.join("\n\n");
+  if (text.replace(/\s/g, "").length < 40)
+    throw new Error(
+      "No readable text was found in that EPUB. It may only contain page images — upload a text version instead.",
+    );
+  return { text, pages: docNames.length, ocrNeeded: false };
 }
 
 export type Chunk = { content: string; chapter: string | null; pageLabel: string | null; position: number };
