@@ -139,15 +139,8 @@ export async function streamAnswer(messages: ChatMessage[]): Promise<ReadableStr
   const encoder = new TextEncoder();
 
   if (provider === "gemini") {
-    const res = await fetch(`${GEMINI_BASE}/openai/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env["GEMINI_API_KEY"]}`,
-      },
-      body: JSON.stringify({ model: GEMINI_CHAT_MODEL, messages, stream: true }),
-    });
-    if (!res.ok) throw friendlyStatus(res.status, await res.text());
+    const res = await geminiChat(messages, true);
+
 
     return new ReadableStream({
       async start(controller) {
