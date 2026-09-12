@@ -209,12 +209,31 @@ function BooksPanel() {
     setIndexing(bookId);
     setProgress({ done: 0, total });
     try {
+      let stalls = 0;
+      let finished = false;
       for (let guard = 0; guard < 4000; guard += 1) {
         const step = await indexBatch({ data: { bookId } });
         setProgress({ done: total - step.remaining, total });
-        if (step.done) break;
+        if (step.done) {
+          finished = true;
+          break;
+        }
+        if (step.embedded === 0) {
+          stalls += 1;
+          if (stalls > 6) break;
+          // The AI service is busy; wait a little and pick up where we stopped.
+          await new Promise((resolve) => setTimeout(resolve, 8000 * stalls));
+        } else {
+          stalls = 0;
+        }
       }
-      toast.success("Indexing finished — this book can now be quoted in answers.");
+      if (finished) {
+        toast.success("Indexing finished — this book can now be quoted in answers.");
+      } else {
+        toast.warning(
+          "The AI service is busy, so indexing paused part-way. Press “Index now” again in a minute to continue where it stopped.",
+        );
+      }
       await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
     } catch (error) {
       toast.error((error as Error).message);
