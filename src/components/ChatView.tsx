@@ -234,10 +234,14 @@ export function ChatView({
                   <BrandMark size={26} className="mt-0.5" />
                   <div className="min-w-0 flex-1">
                     {m.content ? (
-                      <AnswerMarkdown content={m.content} />
+                      <>
+                        <AnswerMarkdown content={m.content} />
+                        {busy && index === messages.length - 1 ? <TypingDots /> : null}
+                      </>
                     ) : (
                       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" /> Consulting the library…
+                        Consulting the library
+                        <TypingDots />
                       </p>
                     )}
                   </div>
